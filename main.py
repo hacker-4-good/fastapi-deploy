@@ -1,10 +1,20 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sklearn.datasets import load_iris
 from sklearn.naive_bayes import GaussianNB
 from pydantic import BaseModel
 
 # Creating FastAPI instance
 app = FastAPI()
+
+# Add CORSMiddleware to the app to allow all origins, methods, and headers
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
+)
 
 # Creating class to define the request body
 # and the type hints of each attribute
