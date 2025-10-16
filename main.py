@@ -1,54 +1,37 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Form, status
+from fastapi.templating import Jinja2Templates 
+from fastapi.responses import RedirectResponse 
 from fastapi.middleware.cors import CORSMiddleware
-from sklearn.datasets import load_iris
-from sklearn.naive_bayes import GaussianNB
-from pydantic import BaseModel
+import joblib
 
-# Creating FastAPI instance
-app = FastAPI()
+app = FastAPI() 
 
-# Add CORSMiddleware to the app to allow all origins, methods, and headers
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
+    CORSMiddleware, 
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],  
+    allow_headers=["*"], 
 )
 
-# Creating class to define the request body
-# and the type hints of each attribute
-class request_body(BaseModel):
-    sepal_length : float
-    sepal_width : float
-    petal_length : float
-    petal_width : float
+templates = Jinja2Templates(directory="templates")
 
-# Loading Iris Dataset
-iris = load_iris()
+@app.get("/")
+async def home(request: Request):
+    return templates.TemplateResponse("home.html", {"request": request})
 
-# Getting our Features and Targets
-X = iris.data
-Y = iris.target
+@app.post("/submit")
+async def submit(request: Request, temperature: float = Form(...), humidity: float = Form(...)):
+    model = joblib.load("model.pt")
+    pred = model.predict([[temperature, humidity]])[0]
+    response = RedirectResponse(url=request.url_for("details"), status_code=status.HTTP_303_SEE_OTHER)
+    if pred>0.5:
+        response.set_cookie("rainfall", "Yes")
+    else:
+        response.set_cookie("rainfall", "No")
+    return response
 
-# Creating and Fitting our Model
-clf = GaussianNB()
-clf.fit(X,Y)
-
-# Creating an Endpoint to receive the data
-# to make prediction on.
-@app.post('/predict')
-def predict(data : request_body):
-    # Making the data in a form suitable for prediction
-    test_data = [[
-            data.sepal_length, 
-            data.sepal_width, 
-            data.petal_length, 
-            data.petal_width
-    ]]
-    
-    # Predicting the Class
-    class_idx = clf.predict(test_data)[0]
-    
-    # Return the Result
-    return { 'class' : iris.target_names[class_idx]}
+@app.get("/details")
+async def details(request: Request):
+    prediction = request.cookies.get("rainfall")
+    return templates.TemplateResponse("details.html", {"request": request, "prediction": prediction})
