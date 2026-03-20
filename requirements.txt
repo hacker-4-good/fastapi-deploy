@@ -1,4 +1,2 @@
-fastapi[standard]
-scikit-learn 
-pydantic 
-joblib
+fastapi
+pymongo
